@@ -57,15 +57,27 @@ class ProcessThread(Thread):
         self.username = username
         self.queue = queue
 
-    def run(self):
-        self.client.connect(self.adress)
+    def wait_for_data(self, queue):
+        while True:
+            sleep(0.02)
+            data = self.client.recv(10000)
+            queue.append(data)
+
+    def recieve_input(self):
         while True:
             content = input('>>> ')
             msg = Message(self.username, content).create()
             self.client.send(msg)
-            data = self.client.recv(1000)
-            if data:
-                self.queue.append(data)
+
+
+
+    def run(self):
+        self.client.connect(self.adress)
+        data_reciever = Thread(target=self.wait_for_data, args=[self.queue])
+        data_reciever.start()
+        user_input_proc = Thread(target=self.recieve_input)
+        user_input_proc.start()
+
 
 class ChatClient:
 
@@ -87,7 +99,7 @@ class ChatClient:
         gui.start()
         print("Type your message here:")
 
-adress = ('localhost', 6783)
+adress = ('localhost', 6782)
 app = ChatClient(adress)
 app.log_in()
 app.run()

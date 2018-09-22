@@ -20,7 +20,7 @@ class Message:
 
 
 def msg_decode(data):
-    header, content = data.decode('utf-8').split('\n')
+    header, *content = data.decode('utf-8').split('\n')
     return header, ''.join(content).lstrip('\n')
 
 

@@ -10,17 +10,19 @@ class ChatServer:
         self.adress = adress
         self.server = socket(AF_INET, SOCK_STREAM)
         self.server.bind(adress)
-        self.server.listen(2)
+        self.server.listen(5)
+        self.client_by_addr = {}
 
-    def client_process(self, client):
+    def client_process(self, client, addr, client_by_addr):
         while True:
             try:
-                data = client.recv(1000)
+                data = client.recv(10000)
                 if data:
-                    header, content = msg_decode(data)
-                    print(content)
-                    new_data = msg_encode(header, content)
-                    client.sendall(new_data)
+                    for key in client_by_addr.keys():
+                        header, content = msg_decode(data)
+                        print(content)
+                        new_data = msg_encode(header, content)
+                        client_by_addr[key].sendall(new_data)
                 else:
                     # Client disconnected
                     # wait for new client
@@ -34,7 +36,9 @@ class ChatServer:
     def run(self):
         while True:
             client, addr = self.server.accept()
-            Thread(target=self.client_process, args=[client]).start()
+            print('Connected client with address', addr)
+            self.client_by_addr[addr] = client
+            Thread(target=self.client_process, args=[client, addr, self.client_by_addr]).start()
         # while True:
         #     try:
         #         data = client.recv(1000)
@@ -53,7 +57,7 @@ class ChatServer:
         #     except Exception as e:
         #         print(e)
 
-adress = ('localhost', 6783)
+adress = ('localhost', 6782)
 try:
     app = ChatServer(adress)
     app.run()
