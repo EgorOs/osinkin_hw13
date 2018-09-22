@@ -1,14 +1,21 @@
 #!/usr/bin/env python3
 
+PRIVATE_MSG = '0'
+USER_MSG = '1'
+ADD_CLIENT = '2'
+REMOVE_CLIENT = '3'
+ERROR_MSG = '4'
+
 
 class Message:
 
-    def __init__(self, username, content):
+    def __init__(self, username, content, message_type):
         self.username = username
         self.content = content
+        self.message_type = message_type
         if self.username:
             # If user has logged in add username to header
-            self.msg_header = self.username + '\n'
+            self.msg_header = '%s|%s\n' % (username, message_type)
         else:
             # Pass empty header
             self.msg_header = '\n'

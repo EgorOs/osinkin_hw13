@@ -4,7 +4,7 @@ from socket import socket, AF_INET, SOCK_STREAM
 from tkinter import *
 from threading import Thread, Lock
 from time import time, sleep
-from messages import Message, msg_encode, msg_decode
+from messages import *
 
 
 class InterfaceThread(Thread):
@@ -39,8 +39,15 @@ class InterfaceThread(Thread):
                         textbar.config(state=NORMAL)
                         data = queue.pop(0)
                         header, content = msg_decode(data)
-                        username = header.split(' ')[0]
-                        textbar.insert(END, '%s: %s\n' % (username, content))
+                        username, msg_type = header.split('|')
+                        if msg_type == PRIVATE_MSG:
+                            target_user, *msg_content = content.split(' ')
+                            target_user = target_user[1::]
+                            content = ' '.join(msg_content)
+                            textbar.insert(END, '%s/%s: %s\n' % (username, target_user, content))
+                        elif msg_type == USER_MSG or msg_type != ERROR_MSG:
+                            textbar.insert(END, '%s: %s\n' % (username, content))
+
                         # Prevent from writing into GUI
                         textbar.config(state=DISABLED)
                     self.update()
@@ -59,20 +66,23 @@ class ProcessThread(Thread):
 
     def wait_for_data(self, queue):
         while True:
-            sleep(0.02)
             data = self.client.recv(10000)
             queue.append(data)
 
     def recieve_input(self):
         while True:
             content = input('>>> ')
-            msg = Message(self.username, content).create()
+            if content.startswith('@'):
+                msg = Message(self.username, content, PRIVATE_MSG).create()
+            else:
+                msg = Message(self.username, content, USER_MSG).create()
             self.client.send(msg)
 
 
 
     def run(self):
-        self.client.connect(self.adress)
+
+        # Run message reciever and user input reader in separate threads
         data_reciever = Thread(target=self.wait_for_data, args=[self.queue])
         data_reciever.start()
         user_input_proc = Thread(target=self.recieve_input)
@@ -84,12 +94,26 @@ class ChatClient:
     def __init__(self, adress):
         self.adress = adress
         self.client = socket(AF_INET, SOCK_STREAM)
-        self.client.setblocking(1)
         self.username = None
         self.queue = []
 
     def log_in(self):
-        self.username = input('Enter your username:\n>>> ')
+        self.client.connect(self.adress)
+
+        # Authorize user on server
+        while True:
+            self.username = input('Enter your username:\n>>> ')
+            new_client_msg = Message(self.username, 'new_user', ADD_CLIENT).create()
+            self.client.send(new_client_msg)
+            echo = self.client.recv(10000)
+            header, content = msg_decode(echo)
+            username, msg_type = header.split('|')
+            if msg_type != ERROR_MSG:
+                self.queue.append(echo)
+                break
+            else:
+                # Print error message if user already logged in
+                print(content)
 
     def run(self):
         lock = Lock()
@@ -99,7 +123,10 @@ class ChatClient:
         gui.start()
         print("Type your message here:")
 
-adress = ('localhost', 6782)
-app = ChatClient(adress)
-app.log_in()
-app.run()
+try:
+    adress = ('localhost', 6782)
+    app = ChatClient(adress)
+    app.log_in()
+    app.run()
+except KeyboardInterrupt:
+    print("Shutting down")
