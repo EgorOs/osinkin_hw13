@@ -8,6 +8,7 @@ from messages import *
 
 
 class InterfaceThread(Thread):
+    """ Processes the graphical interface"""
 
     def __init__(self, client, username, queue, lock, stop_signal):
         Thread.__init__(self)
@@ -85,24 +86,28 @@ class InterfaceThread(Thread):
         gui.destroy()
 
 class ProcessThread(Thread):
+    """ Manages data input and output """
 
-    def __init__(self, client, adress, username, queue, lock, stop_signal):
+    def __init__(self, client, address, username, queue, lock, stop_signal):
         Thread.__init__(self)
         self.client = client
-        self.adress = adress
+        self.address = address
         self.username = username
         self.queue = queue
         self.stop_signal = stop_signal
         self.daemon = True
 
     def wait_for_data(self, queue):
+        """ Listen for incoming messages """
+
         while True:
             if self.stop_signal:
                 break
             data = self.client.recv(10000)
             queue.append(data)
 
-    def recieve_input(self):
+    def receive_input(self):
+        """ Await for user input """
         while True:
             content = input('>>> ')
             if content.startswith('@'):
@@ -118,28 +123,28 @@ class ProcessThread(Thread):
 
 
     def run(self):
+        """ Runs message receiver and user input reader in separate threads """
 
-        # Run message reciever and user input reader in separate threads
-        data_reciever = Thread(target=self.wait_for_data, args=[self.queue], daemon=True)
-        data_reciever.start()
-        user_input_proc = Thread(target=self.recieve_input, daemon=True)
+        data_receiver = Thread(target=self.wait_for_data, args=[self.queue], daemon=True)
+        data_receiver.start()
+        user_input_proc = Thread(target=self.receive_input, daemon=True)
         user_input_proc.start()
         if self.stop_signal:
-            data_reciever.join()
+            data_receiver.join()
             user_input_proc.join()
 
 
 class ChatClient:
 
-    def __init__(self, adress):
-        self.adress = adress
+    def __init__(self, address):
+        self.address = address
         self.client = socket(AF_INET, SOCK_STREAM)
         self.username = None
         self.queue = []
         self.stop_signal = []
 
     def log_in(self):
-        self.client.connect(self.adress)
+        self.client.connect(self.address)
 
         # Authorize user on server
         while True:
@@ -158,12 +163,13 @@ class ChatClient:
 
     def run(self):
         lock = Lock()
-        processing = ProcessThread(self.client, self.adress, self.username, self.queue, lock, self.stop_signal)
+        processing = ProcessThread(self.client, self.address, self.username, self.queue, lock, self.stop_signal)
         gui = InterfaceThread(self.client, self.username, self.queue, lock, self.stop_signal)
         processing.start()
         gui.start()
         print("Type your message here:")
         while True:
+            # Immitate main thread
             if self.stop_signal:
                 break
             sleep(2)
@@ -171,8 +177,8 @@ class ChatClient:
         gui.join()
 
 try:
-    adress = ('localhost', 6782)
-    app = ChatClient(adress)
+    address = ('localhost', 6782)
+    app = ChatClient(address)
     app.log_in()
     app.run()
 except KeyboardInterrupt:

@@ -4,6 +4,7 @@ from socket import socket, AF_INET, SOCK_STREAM
 from messages import *
 from threading import *
 
+
 class ChatServer:
 
     def __init__(self, address):
@@ -60,7 +61,7 @@ class ChatServer:
                     del user_by_addr[addr]
                     print('Client with address', addr, 'has disconnected')
                     client.close()
-
+                    # Send message to remove user from GUI
                     users = ','.join([str(v) for v in user_by_addr.values()])
                     response = Message(username, users, REMOVE_CLIENT).create()
                     for key in client_by_addr.keys():
@@ -73,11 +74,13 @@ class ChatServer:
 
     def run(self):
         while True:
+            # Run new thread, when receive a new connection
             client, addr = self.server.accept()
             print('Connected client with address', addr)
             self.client_by_addr[addr] = client
             Thread(target=self.client_process, args=[client, self.server, addr, 
                 self.client_by_addr, self.user_by_addr]).start()
+
 
 address = ('localhost', 6782)
 try:
