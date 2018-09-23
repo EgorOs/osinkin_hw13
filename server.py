@@ -25,7 +25,8 @@ class ChatServer:
                         # Add new user
                         if username not in user_by_addr.values():
                             user_by_addr[addr] = username
-                            response = Message(username, '<joined conversation>', ADD_CLIENT).create()
+                            users = ', '.join([str(v) for v in user_by_addr.values()])
+                            response = Message(username, users, ADD_CLIENT).create()
                         else:
                             # Send error message if user already logged in
                             response = Message(username, 'User already logged in', ERROR_MSG).create()
@@ -59,6 +60,11 @@ class ChatServer:
                     del user_by_addr[addr]
                     print('Client with address', addr, 'has disconnected')
                     client.close()
+
+                    users = ','.join([str(v) for v in user_by_addr.values()])
+                    response = Message(username, users, REMOVE_CLIENT).create()
+                    for key in client_by_addr.keys():
+                        client_by_addr[key].sendall(response)
                     break
 
             except Exception as e:
